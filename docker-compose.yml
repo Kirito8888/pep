@@ -1,0 +1,42 @@
+# AthlosPro — un solo comando:  docker compose up --build
+# Los valores por defecto permiten arrancar sin .env en local; para cualquier uso
+# real copia .env.example a .env y cambia POSTGRES_PASSWORD y AUTH_SECRET.
+name: athlospro
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-athlos}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-athlos_dev_password}
+      POSTGRES_DB: ${POSTGRES_DB:-athlospro}
+    volumes:
+      # Volumen con nombre (no una carpeta del anfitrión): evita problemas de permisos en Windows.
+      - athlospro_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # Prisma lee DATABASE_URL; se construye con las mismas variables que usa el servicio db.
+      DATABASE_URL: postgresql://${POSTGRES_USER:-athlos}:${POSTGRES_PASSWORD:-athlos_dev_password}@db:5432/${POSTGRES_DB:-athlospro}?schema=public
+      # Auth.js lee AUTH_SECRET y AUTH_TRUST_HOST.
+      AUTH_SECRET: ${AUTH_SECRET:-solo_desarrollo_cambia_este_secreto_en_tu_env}
+      AUTH_TRUST_HOST: "true"
+      SEED_DEMO_DATA: ${SEED_DEMO_DATA:-true}
+    ports:
+      - "${APP_PORT:-3000}:3000"
+
+volumes:
+  athlospro_pgdata:

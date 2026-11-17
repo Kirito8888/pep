@@ -1,0 +1,396 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Sex {
+  M
+  F
+}
+
+enum FriendStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+enum Phase {
+  GPP
+  SPP
+  PRE_COMP
+  COMP
+  TAPER
+}
+
+enum BlockType {
+  MOBILITY
+  TECHNIQUE
+  JUMPS_THROWS
+  STRENGTH
+  METABOLIC
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  passwordHash String
+  sex          Sex      @default(M)
+  specialty    String   @default("COMBINED")
+  inviteCode   String   @unique
+  restingHr    Int?
+  maxHr        Int?
+  createdAt    DateTime @default(now())
+
+  sentRequests     Friendship[]      @relation("requester")
+  receivedRequests Friendship[]      @relation("addressee")
+  ownedPlans       Plan[]            @relation("owner")
+  assignedPlans    Plan[]            @relation("assignee")
+  comments         SessionComment[]
+  liftLogs         LiftLog[]
+  personalRecords  PersonalRecord[]
+  implements       Implement[]
+  throwLogs        ThrowLog[]
+  prehabLogs       PrehabLog[]
+  medBallLogs      MedBallLog[]
+  approachRuns     ApproachRun[]
+  plyoLogs         PlyoLog[]
+  poleConfigs      PoleConfig[]
+  marks            Mark[]
+  combinedResults  CombinedResult[]
+  enduranceLogs    EnduranceLog[]
+}
+
+model Friendship {
+  id          String       @id @default(cuid())
+  requesterId String
+  addresseeId String
+  status      FriendStatus @default(PENDING)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  requester User @relation("requester", fields: [requesterId], references: [id], onDelete: Cascade)
+  addressee User @relation("addressee", fields: [addresseeId], references: [id], onDelete: Cascade)
+
+  @@unique([requesterId, addresseeId])
+  @@index([addresseeId])
+}
+
+model Plan {
+  id           String   @id @default(cuid())
+  ownerId      String
+  assigneeId   String?
+  title        String
+  description  String   @default("")
+  specialty    String
+  level        String   @default("INTERMEDIATE")
+  startDate    DateTime
+  clonedFromId String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  owner      User              @relation("owner", fields: [ownerId], references: [id], onDelete: Cascade)
+  assignee   User?             @relation("assignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  mesocycles Mesocycle[]
+  sessions   TrainingSession[]
+
+  @@index([ownerId])
+  @@index([assigneeId])
+}
+
+model Mesocycle {
+  id     String @id @default(cuid())
+  planId String
+  name   String
+  phase  Phase
+  order  Int
+
+  plan        Plan         @relation(fields: [planId], references: [id], onDelete: Cascade)
+  microcycles Microcycle[]
+
+  @@index([planId])
+}
+
+model Microcycle {
+  id          String @id @default(cuid())
+  mesocycleId String
+  weekNumber  Int
+  focus       String @default("")
+
+  mesocycle Mesocycle         @relation(fields: [mesocycleId], references: [id], onDelete: Cascade)
+  sessions  TrainingSession[]
+
+  @@index([mesocycleId])
+}
+
+model TrainingSession {
+  id           String    @id @default(cuid())
+  planId       String
+  microcycleId String
+  date         DateTime
+  title        String
+  completed    Boolean   @default(false)
+  completedAt  DateTime?
+  feeling      Int?
+  sessionRpe   Int?
+  athleteNotes String    @default("")
+
+  plan       Plan             @relation(fields: [planId], references: [id], onDelete: Cascade)
+  microcycle Microcycle       @relation(fields: [microcycleId], references: [id], onDelete: Cascade)
+  blocks     SessionBlock[]
+  comments   SessionComment[]
+
+  @@index([planId, date])
+  @@index([microcycleId])
+}
+
+model SessionBlock {
+  id        String    @id @default(cuid())
+  sessionId String
+  type      BlockType
+  order     Int
+  title     String
+  notes     String    @default("")
+
+  session   TrainingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  exercises BlockExercise[]
+
+  @@index([sessionId])
+}
+
+model BlockExercise {
+  id             String  @id @default(cuid())
+  blockId        String
+  order          Int
+  name           String
+  sets           Int     @default(1)
+  reps           Int     @default(1)
+  intensityType  String  @default("NONE")
+  intensityValue Float?
+  restSec        Int?
+  notes          String  @default("")
+  implement      String?
+  muscleGroup    String?
+  loadKg         Float?
+  // Totales del ejercicio (todas las series) que alimentan el semáforo de fatiga
+  sprintMeters   Int     @default(0)
+  hurdles        Int     @default(0)
+  plyoContacts   Int     @default(0)
+  throwsCount    Int     @default(0)
+  distanceM      Int     @default(0)
+
+  block SessionBlock @relation(fields: [blockId], references: [id], onDelete: Cascade)
+
+  @@index([blockId])
+}
+
+model SessionComment {
+  id        String   @id @default(cuid())
+  sessionId String
+  authorId  String
+  text      String
+  createdAt DateTime @default(now())
+
+  session TrainingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  author  User            @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+}
+
+model LiftLog {
+  id          String   @id @default(cuid())
+  userId      String
+  date        DateTime
+  exercise    String
+  muscleGroup String
+  sets        Int
+  reps        Int
+  weightKg    Float
+  rpe         Float?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
+}
+
+model PersonalRecord {
+  id       String   @id @default(cuid())
+  userId   String
+  exercise String
+  category String
+  value    Float
+  unit     String   @default("kg")
+  reps     Int      @default(1)
+  date     DateTime
+  notes    String   @default("")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, exercise])
+}
+
+model Implement {
+  id              String @id @default(cuid())
+  userId          String
+  event           String
+  name            String
+  kind            String
+  weightG         Int
+  officialWeightG Int
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model ThrowLog {
+  id              String   @id @default(cuid())
+  userId          String
+  date            DateTime
+  event           String
+  implementName   String
+  weightG         Int
+  officialWeightG Int
+  count           Int
+  intensityPct    Int
+  bestDistance    Float?
+  // Específico de jabalina
+  throwType       String?
+  approachMeters  Float?
+  approachSteps   Int?
+  crossSteps      Int?
+  checkMark       Float?
+  anglePerceived  String?
+  windType        String?
+  windSpeed       Float?
+  notes           String   @default("")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
+}
+
+model PrehabLog {
+  id     String   @id @default(cuid())
+  userId String
+  date   DateTime
+  items  String[]
+  notes  String   @default("")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
+}
+
+model MedBallLog {
+  id           String   @id @default(cuid())
+  userId       String
+  date         DateTime
+  type         String
+  weightKg     Float
+  throws       Int
+  bestDistance Float?
+  notes        String   @default("")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
+}
+
+model ApproachRun {
+  id            String   @id @default(cuid())
+  userId        String
+  date          DateTime
+  event         String
+  name          String
+  distanceM     Float
+  strides       Int
+  midMarkM      Float?
+  midMarkStride Int?
+  wind          Float?
+  adjustmentCm  Float?
+  notes         String   @default("")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model PlyoLog {
+  id        String   @id @default(cuid())
+  userId    String
+  date      DateTime
+  type      String
+  contacts  Int
+  intensity String   @default("MEDIUM")
+  notes     String   @default("")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
+}
+
+model PoleConfig {
+  id              String @id @default(cuid())
+  userId          String
+  name            String
+  lengthM         Float
+  flexLbs         Int
+  gripHeightM     Float
+  standardsCm     Int
+  approachStrides Int?
+  notes           String @default("")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Mark {
+  id          String   @id @default(cuid())
+  userId      String
+  event       String
+  value       Float
+  wind        Float?
+  indoor      Boolean  @default(false)
+  date        DateTime
+  competition String   @default("")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, event])
+}
+
+model CombinedResult {
+  id           String   @id @default(cuid())
+  userId       String
+  competition  String
+  label        String
+  date         DateTime
+  performances Json
+  totalPoints  Int
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
+}
+
+model EnduranceLog {
+  id          String   @id @default(cuid())
+  userId      String
+  date        DateTime
+  type        String
+  distanceKm  Float
+  durationMin Float
+  rpe         Int
+  notes       String   @default("")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
+}
