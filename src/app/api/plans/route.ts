@@ -17,8 +17,8 @@ export const GET = route(async () => {
     prisma.plan.findMany({
       where: {
         ownerId: { not: user.id },
-        NOT: { assigneeId: user.id },
-        OR: [{ ownerId: { in: friends } }, { assigneeId: { in: friends } }],
+        // "assigneeId distinto de mí" debe incluir explícitamente los planes sin asignar (NULL).
+        AND: [{ OR: [{ assigneeId: null }, { assigneeId: { not: user.id } }] }, { OR: [{ ownerId: { in: friends } }, { assigneeId: { in: friends } }] }],
       },
       select: planSummarySelect,
       orderBy: { updatedAt: "desc" },

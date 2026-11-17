@@ -14,18 +14,16 @@ export function PlanCard({ plan, href, meId, actions }: { plan: PlanSummaryJson;
   const role = meId ? (plan.ownerId === meId ? (plan.assignee ? `Creado por ti para ${plan.assignee.name}` : "Plan propio") : `Asignado por ${plan.owner.name}`) : `De ${plan.owner.name}${plan.assignee ? ` para ${plan.assignee.name}` : ""}`;
   return (
     <article className="card flex flex-col">
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <h3 className="truncate text-base font-bold">
-            <Link href={href} className="hover:underline">
-              {plan.title}
-            </Link>
-          </h3>
-          <p className="muted text-xs">
-            {SPECIALTY_LABEL[plan.specialty] ?? plan.specialty} · inicio {formatDate(plan.startDate)} · {plan.weeks} semanas
-          </p>
-        </div>
-        <span className="badge shrink-0">{role}</span>
+      <div className="min-w-0">
+        <h3 className="text-base font-bold leading-snug">
+          <Link href={href} className="hover:underline">
+            {plan.title}
+          </Link>
+        </h3>
+        <p className="muted mt-0.5 text-xs">
+          {SPECIALTY_LABEL[plan.specialty] ?? plan.specialty} · inicio {formatDate(plan.startDate)} · {plan.weeks} semanas
+        </p>
+        <span className="badge mt-2">{role}</span>
       </div>
       <div className="mt-3 flex h-2.5 gap-0.5 overflow-hidden rounded-full" role="img" aria-label={`Fases: ${plan.phases.map((p) => `${PHASE_LABEL[p.phase]} ${p.weeks} semanas`).join(", ")}`}>
         {plan.phases.map((p, i) => (

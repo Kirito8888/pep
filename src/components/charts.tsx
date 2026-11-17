@@ -24,7 +24,12 @@ const tooltipProps = {
   cursor: { fill: "var(--surface-2)", stroke: "var(--axis)" },
 } as const;
 
-const legendProps = { wrapperStyle: { fontSize: 12, color: "var(--ink-2)" }, iconSize: 10 } as const;
+// La leyenda usa tinta de texto: la identidad la lleva la marca de color, no el texto.
+const legendProps = {
+  wrapperStyle: { fontSize: 12 },
+  iconSize: 10,
+  formatter: (value: string) => <span style={{ color: "var(--ink-2)" }}>{value}</span>,
+} as const;
 
 type Row = Record<string, string | number | null>;
 

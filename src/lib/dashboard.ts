@@ -67,7 +67,7 @@ export async function buildDashboard(user: SessionUser): Promise<DashboardData> 
     prisma.trainingSession.findMany({
       where: {
         date: { gte: today, lt: addDays(today, 8) },
-        plan: { ownerId: { not: user.id }, NOT: { assigneeId: user.id }, OR: [{ ownerId: { in: friends } }, { assigneeId: { in: friends } }] },
+        plan: { ownerId: { not: user.id }, AND: [{ OR: [{ assigneeId: null }, { assigneeId: { not: user.id } }] }, { OR: [{ ownerId: { in: friends } }, { assigneeId: { in: friends } }] }] },
       },
       select: {
         id: true,

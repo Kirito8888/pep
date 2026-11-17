@@ -58,7 +58,8 @@ body {
 
 @layer components {
   .card {
-    @apply rounded-xl border p-4 shadow-sm;
+    /* min-w-0 evita que el contenido ancho (tablas) ensanche la rejilla en móvil. */
+    @apply min-w-0 overflow-x-auto rounded-xl border p-4 shadow-sm;
     background: var(--surface);
     border-color: var(--border);
   }
@@ -124,4 +125,9 @@ body {
   .table tr:last-child td {
     @apply border-b-0;
   }
+}
+
+/* Los hijos de una rejilla pueden encogerse por debajo de su contenido (evita desbordes en móvil). */
+.grid > * {
+  min-width: 0;
 }
