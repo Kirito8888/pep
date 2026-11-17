@@ -1,12 +1,12 @@
 # syntax=docker/dockerfile:1
 # AthlosPro — imagen multi-stage (funciona igual en Linux y en Windows con Docker Desktop/WSL2)
+#
+# Se usa node:22-bookworm (no "-slim"): ya incluye openssl y ca-certificates, que Prisma
+# necesita, y así el build NO ejecuta apt-get (falla en redes con proxy que bloquea Debian).
 
 # ── 1. Dependencias ──────────────────────────────────────────────────────────
-FROM node:22-bookworm-slim AS deps
+FROM node:22-bookworm AS deps
 WORKDIR /app
-RUN apt-get update \
-  && apt-get install -y --no-install-recommends openssl ca-certificates \
-  && apt-get clean
 COPY package.json package-lock.json ./
 COPY prisma ./prisma
 # "postinstall" ejecuta "prisma generate", por eso el esquema se copia antes.
@@ -20,15 +20,12 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build && npm prune --omit=dev
 
 # ── 3. Ejecución ─────────────────────────────────────────────────────────────
-FROM node:22-bookworm-slim AS runner
+FROM node:22-bookworm AS runner
 WORKDIR /app
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
     PORT=3000 \
     HOSTNAME=0.0.0.0
-RUN apt-get update \
-  && apt-get install -y --no-install-recommends openssl ca-certificates \
-  && apt-get clean
 
 COPY --from=builder --chown=node:node /app/package.json /app/package-lock.json ./
 COPY --from=builder --chown=node:node /app/node_modules ./node_modules
